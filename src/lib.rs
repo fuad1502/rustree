@@ -99,6 +99,30 @@ impl Graph {
             states.insert(*id, BfsState::Undiscovered);
         }
     }
+
+    pub fn furthest_from_root(&self, root: i32) -> Result<(i32, i32), &str> {
+        if !self.adjacency_list.contains_key(&root) {
+            return Err("Root vertex doesn't exist in the graph");
+        }
+
+        let mut furthest_vertex = root;
+        let mut max_height = 0;
+        let mut heights: HashMap<i32, i32> = HashMap::new();
+        heights.insert(root, 1);
+        let mut bfs_functions = BfsFunc::new();
+        let f = |from, to| {
+            let parent_height = *heights.get(&from).unwrap();
+            heights.insert(to, parent_height + 1);
+            if parent_height + 1 > max_height {
+                furthest_vertex = to;
+                max_height = parent_height + 1;
+            }
+        };
+        bfs_functions.edge_processing_in_tree = Box::new(f);
+        self.bfs(root, bfs_functions).unwrap();
+
+        Ok((furthest_vertex, max_height))
+    }
 }
 
 #[cfg(test)]
@@ -127,8 +151,7 @@ mod tests {
         );
     }
 
-    #[test]
-    fn bfs_success() {
+    fn create_graph() -> Graph {
         let mut g = Graph::new();
         for id in 1..=8 {
             g.add_vertex(id);
@@ -143,7 +166,12 @@ mod tests {
         g.add_edge(3, 5).unwrap();
         g.add_edge(4, 5).unwrap();
         g.add_edge(5, 6).unwrap();
+        g
+    }
 
+    #[test]
+    fn bfs_success() {
+        let g = create_graph();
         let mut parents: HashMap<i32, i32> = HashMap::new();
         let mut bfs_functions = BfsFunc::new();
         let edge_processing_in_tree = |from, to| {
@@ -153,13 +181,13 @@ mod tests {
         assert!(g.bfs(1, bfs_functions).is_ok());
 
         let mut expected_parents: HashMap<i32, i32> = HashMap::new();
-        expected_parents.insert(2,1);
-        expected_parents.insert(7,1);
-        expected_parents.insert(8,1);
-        expected_parents.insert(3,2);
-        expected_parents.insert(5,2);
-        expected_parents.insert(4,3);
-        expected_parents.insert(6,5);
+        expected_parents.insert(2, 1);
+        expected_parents.insert(7, 1);
+        expected_parents.insert(8, 1);
+        expected_parents.insert(3, 2);
+        expected_parents.insert(5, 2);
+        expected_parents.insert(4, 3);
+        expected_parents.insert(6, 5);
         assert_eq!(parents, expected_parents);
     }
 
@@ -171,5 +199,12 @@ mod tests {
             g.bfs(1, bfs_functions).err().unwrap(),
             "Root vertex doesn't exist in the graph"
         );
+    }
+
+    #[test]
+    fn furthest_from_root_test() {
+        let g = create_graph();
+        let result = g.furthest_from_root(1).unwrap();
+        assert!(result == (4, 4) || result == (6, 4));
     }
 }
